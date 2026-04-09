@@ -1,98 +1,382 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useFuelStore } from '@/store/fuelStore';
+import { useSettingsStore } from '@/store/settingsStore';
+import { useCallback } from 'react';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const entries = useFuelStore((state) => state.entries);
+  const isEntriesLoaded = useFuelStore((state) => state.isLoaded);
+  const loadEntries = useFuelStore((state) => state.loadEntries);
+  const unit = useSettingsStore((state) => state.unit);
+  const loadSettings = useSettingsStore((state) => state.loadSettings);
+  const isSetupComplete = useSettingsStore((state) => state.isSetupComplete);
+  const carName = useSettingsStore((state) => state.carName);
+  const initialMileage = useSettingsStore((state) => state.initialMileage);
+  const [stats, setStats] = useState<any>(null);
+  const [setupLoaded, setSetupLoaded] = useState(false);
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const getUnitLabel = () => unit === 'km' ? 'km' : 'mi';
+
+  const CURRENCY_SYMBOLS: Record<string, string> = {
+    EUR: '€',
+    USD: '$',
+    GBP: '£',
+    CAD: 'C$',
+    BGN: 'лв',
+    CZK: 'Kč',
+    DKK: 'kr',
+    HUF: 'Ft',
+    PLN: 'zł',
+    RON: 'lei',
+    SEK: 'kr',
+    CHF: 'CHF',
+    NOK: 'kr',
+  };
+
+  const getCurrencySymbol = (currencyCode: string) => {
+    return CURRENCY_SYMBOLS[currencyCode] || currencyCode;
+  };
+
+  const getLastEntryStats = () => {
+    if (entries.length < 2) return null;
+
+    // Sort entries by date descending
+    const sorted = [...entries].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
+    const lastEntry = sorted[0];
+    const previousEntry = sorted[1];
+
+    const distance = lastEntry.mileage - previousEntry.mileage;
+    if (distance <= 0) return null;
+
+    const efficiency = ((lastEntry.fuelAmount / distance) * 100).toFixed(2);
+    const costPerLiter = (lastEntry.cost / lastEntry.fuelAmount).toFixed(2);
+
+    return {
+      efficiency,
+      costPerLiter,
+      currency: lastEntry.currency,
+    };
+  };
+
+  const calculateStats = () => {
+    if (!entries || entries.length === 0) {
+      return null;
+    }
+
+    // Filter for last 30 days
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const last30Days = entries.filter((entry) => new Date(entry.date) >= thirtyDaysAgo);
+
+    if (last30Days.length === 0) {
+      return null;
+    }
+
+    const totalFuelPurchased = last30Days.reduce((sum, e) => sum + e.fuelAmount, 0);
+
+    // Find the highest and lowest mileage in this period
+    const maxMileage = Math.max(...last30Days.map(e => e.mileage));
+    const minMileage = Math.min(...last30Days.map(e => e.mileage));
+
+    // Distance in this 30-day period
+    const totalDistance = maxMileage - minMileage;
+
+    // Average fuel efficiency
+    const avgFuelPer100km =
+      totalDistance > 0 ? ((totalFuelPurchased / totalDistance) * 100).toFixed(2) : 0;
+
+    // Find currency with most spending
+    const currencySpending: Record<string, { cost: number; fuel: number }> = {};
+    last30Days.forEach((e) => {
+      if (!currencySpending[e.currency]) {
+        currencySpending[e.currency] = { cost: 0, fuel: 0 };
+      }
+      currencySpending[e.currency].cost += e.cost;
+      currencySpending[e.currency].fuel += e.fuelAmount;
+    });
+
+    const mostSpentCurrency = Object.keys(currencySpending).reduce((a, b) =>
+      currencySpending[a].cost > currencySpending[b].cost ? a : b
+    );
+
+    const costPerLiter = currencySpending[mostSpentCurrency].fuel > 0
+      ? (currencySpending[mostSpentCurrency].cost / currencySpending[mostSpentCurrency].fuel).toFixed(2)
+      : 0;
+
+    return {
+      fuelConsumed: totalFuelPurchased.toFixed(2),
+      distanceTraveled: totalDistance.toFixed(0),
+      fuelPer100km: avgFuelPer100km,
+      costPerLiter,
+      currencySymbol: getCurrencySymbol(mostSpentCurrency),
+    };
+  };
+
+  // Load data on mount
+  useEffect(() => {
+    const loadAndCalculate = async () => {
+      try {
+        await Promise.all([loadEntries(), loadSettings()]);
+        // Give store time to update
+        setTimeout(() => {
+          const state = useSettingsStore.getState();
+          console.log('Setup complete?', state.isSetupComplete, 'Car:', state.carName);
+          if (!state.isSetupComplete) {
+            console.log('Redirecting to setup...');
+            router.push('/setup');
+          } else {
+            setSetupLoaded(true);
+          }
+        }, 100);
+      } catch (err) {
+        console.error('Load error:', err);
+        setSetupLoaded(true);
+      }
+    };
+    loadAndCalculate();
+  }, [loadEntries, loadSettings]);
+
+  // Refresh when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadEntries();
+    }, [loadEntries])
+  );
+
+  // Recalculate stats whenever entries or initialMileage change
+  useEffect(() => {
+    if (setupLoaded && isEntriesLoaded && entries.length > 0) {
+      setStats(calculateStats());
+    }
+  }, [entries, initialMileage, setupLoaded, isEntriesLoaded]);
+
+  if (!setupLoaded) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: '#aaa' }}>Loading...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.headerRow}>
+        <View style={styles.titleColumn}>
+          <Text style={styles.title}>don't-forget-oil</Text>
+          {carName && <Text style={styles.carName}>{carName}</Text>}
+        </View>
+        <TouchableOpacity
+          onPress={() => router.push('/settings')}
+          style={styles.settingsButton}
+        >
+          <Text style={styles.settingsButtonText}>⚙️</Text>
+        </TouchableOpacity>
+      </View>
+
+      {entries.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateText}>No entries yet</Text>
+          <Text style={styles.emptyStateSubtext}>Start logging fuel to see statistics</Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.statsPreview}>
+            <Text style={styles.statsTitle}>Last 30 days stats:</Text>
+            {stats && (
+              <View style={styles.statsGrid}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statValue}>{stats.distanceTraveled}</Text>
+                  <Text style={styles.statLabel}>Distance Traveled ({getUnitLabel()})</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statValue}>{stats.fuelConsumed}</Text>
+                  <Text style={styles.statLabel}>Fuel Consumed (litres)</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statValue}>{stats.fuelPer100km}</Text>
+                  <Text style={styles.statLabel}>Efficiency (l/100{getUnitLabel()})</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statValue}>{stats.costPerLiter}</Text>
+                  <Text style={styles.statLabel}>Cost per liter ({stats.currencySymbol})</Text>
+                </View>
+              </View>
+            )}
+          </View>
+
+          {getLastEntryStats() && (
+            <View style={styles.lastEntryBox}>
+              <Text style={styles.lastEntryLabel}>Last time:</Text>
+              <View style={styles.lastEntryContent}>
+                <View style={styles.lastEntryStat}>
+                  <Text style={styles.lastEntryValue}>{getLastEntryStats()!.efficiency}</Text>
+                  <Text style={styles.lastEntryStatLabel}>Efficiency (l/100{getUnitLabel()})</Text>
+                </View>
+                <View style={styles.lastEntryStat}>
+                  <Text style={styles.lastEntryValue}>{getLastEntryStats()!.costPerLiter}</Text>
+                  <Text style={styles.lastEntryStatLabel}>Cost per liter ({getCurrencySymbol(getLastEntryStats()!.currency)})</Text>
+                </View>
+              </View>
+            </View>
+          )}
+        </>
+      )}
+
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => router.push('/log-fuel')}
+        >
+          <Text style={styles.buttonText}>📸 Log Fuel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => router.push('/history')}
+        >
+          <Text style={styles.buttonText}>📊 View History</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: '#1a1a1a',
+    padding: 20,
+  },
+  headerRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
+    marginBottom: 10,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  titleColumn: {
+    flex: 1,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  carName: {
+    fontSize: 14,
+    color: '#4fb3ff',
+    marginTop: 2,
+  },
+  settingsButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#2a2a2a',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingsButtonText: {
+    fontSize: 20,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    marginBottom: 20,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#aaa',
+    marginBottom: 4,
+  },
+  emptyStateSubtext: {
+    fontSize: 12,
+    color: '#666',
+  },
+  statsPreview: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 10,
+    padding: 20,
+    marginBottom: 30,
+  },
+  statsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 15,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
+  },
+  statCard: {
+    width: '48%',
+    backgroundColor: '#1a1a1a',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4fb3ff',
+  },
+  statLabel: {
+    fontSize: 11,
+    color: '#aaa',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  buttonContainer: {
+    gap: 15,
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  lastEntryBox: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 10,
+    padding: 20,
+    marginBottom: 30,
+  },
+  lastEntryLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 12,
+  },
+  lastEntryContent: {
+    flexDirection: 'row',
+    gap: 15,
+  },
+  lastEntryStat: {
+    flex: 1,
+    backgroundColor: '#1a1a1a',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  lastEntryValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4fb3ff',
+    marginBottom: 4,
+  },
+  lastEntryStatLabel: {
+    fontSize: 11,
+    color: '#aaa',
+    textAlign: 'center',
   },
 });
