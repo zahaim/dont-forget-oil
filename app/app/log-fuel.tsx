@@ -12,6 +12,7 @@ export default function LogFuelScreen() {
   const [error, setError] = useState('');
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [efficiency, setEfficiency] = useState<string | null>(null);
+  const [makeDefault, setMakeDefault] = useState(false);
 
   const addFuel = useFuelStore((state) => state.addFuel);
   const unit = useSettingsStore((state) => state.unit);
@@ -101,11 +102,17 @@ export default function LogFuelScreen() {
         currency: selectedCurrency,
       });
 
+      // Set as default if checkbox is checked
+      if (makeDefault) {
+        await setDefaultCurrency(selectedCurrency);
+      }
+
       // Reset form
       setMileage('');
       setFuelAmount('');
       setCost('');
       setError('');
+      setMakeDefault(false);
 
       // Navigate to home
       router.back();
@@ -140,6 +147,13 @@ export default function LogFuelScreen() {
               {getCurrencyLabel(selectedCurrency)} ({getCurrencySymbol(selectedCurrency)})
             </Text>
             <Text style={styles.currencyButtonArrow}>▼</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.checkboxContainer}
+            onPress={() => setMakeDefault(!makeDefault)}
+          >
+            <Text style={styles.checkbox}>{makeDefault ? '☑' : '☐'}</Text>
+            <Text style={styles.checkboxLabel}>Make it default</Text>
           </TouchableOpacity>
         </View>
 
@@ -213,6 +227,7 @@ export default function LogFuelScreen() {
                   style={styles.currencyOption}
                   onPress={() => {
                     setSelectedCurrency(item.code);
+                    setShowCurrencyPicker(false);
                   }}
                 >
                   <View>
@@ -223,15 +238,6 @@ export default function LogFuelScreen() {
                 </TouchableOpacity>
               )}
             />
-            <TouchableOpacity
-              style={styles.makeDefaultButton}
-              onPress={() => {
-                setDefaultCurrency(selectedCurrency);
-                setShowCurrencyPicker(false);
-              }}
-            >
-              <Text style={styles.makeDefaultText}>✓ Set as default currency</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -380,18 +386,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#4fb3ff',
   },
-  makeDefaultButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    marginHorizontal: 20,
-    marginVertical: 12,
-    borderRadius: 8,
+  checkboxContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 10,
+    paddingVertical: 8,
   },
-  makeDefaultText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  checkbox: {
+    fontSize: 18,
+    color: '#4fb3ff',
+    marginRight: 8,
+  },
+  checkboxLabel: {
+    fontSize: 14,
+    color: '#aaa',
   },
 });
