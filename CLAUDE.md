@@ -35,13 +35,70 @@ See [TECH_STACK.md](TECH_STACK.md) for technical approach recommendations.
 ## Getting Started
 
 ### Prerequisites
-*(Will be filled in once tech stack is chosen)*
+
+- Node.js and npm installed
+- Xcode installed on macOS
+- Apple Developer account (free)
+- iPhone running iOS 12+
 
 ### Setup
-*(Will be filled in once development environment is configured)*
+
+1. **Install dependencies:**
+   ```bash
+   cd app
+   npm install
+   ```
+
+2. **Configure bundle ID:**
+   - Open `app/app.json`
+   - Change `"bundleIdentifier": "com.anonymous.app"` to something like `"com.yourname.app"`
+   - Save the file
+
+3. **Enable Developer Mode on iPhone:**
+   - Connect iPhone to Mac via USB
+   - On iPhone: **Settings** → **Privacy & Security** → **Developer Mode** → **Toggle ON**
+   - Restart your iPhone
+   - Trust the Mac when prompted
+
+### Building & Deploying to iPhone
+
+```bash
+cd app
+
+# Regenerate iOS native project (do this after changing app.json)
+npx expo prebuild --platform ios --clean
+
+# Build and install on connected iPhone (release version, no dev server needed)
+npx expo run:ios --device --configuration Release
+```
+
+First time setup may ask you to:
+1. **Trust the developer certificate** on your iPhone (**Settings** → **General** → **VPN & Device Management**)
+2. Allow Xcode to access your credentials
 
 ### Development Commands
-*(Will be added once project is initialized)*
+
+**For local testing with hot reload** (requires dev server):
+```bash
+cd app
+npx expo start
+# Then press 'i' to open in iOS simulator, or scan QR with Expo Go app
+```
+
+**For building a standalone release** (works offline on device):
+```bash
+cd app
+npx expo run:ios --device --configuration Release
+```
+
+**Clean rebuild** (if you hit cache issues):
+```bash
+cd app
+rm -rf ios/Pods ios/Podfile.lock node_modules
+npm install
+npx expo prebuild --platform ios --clean
+npx expo run:ios --device --configuration Release
+```
 
 ## Architecture
 
