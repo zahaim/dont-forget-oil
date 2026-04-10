@@ -146,12 +146,6 @@ export default function LogFuelScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButtonContainer}>
-            <Text style={styles.backButton}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Log Fuel</Text>
-        </View>
 
       <View style={styles.form}>
         <View style={styles.field}>
@@ -273,26 +267,6 @@ const styles = StyleSheet.create({
     color: '#aaa',
     textAlign: 'center',
     marginTop: 20,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-  backButtonContainer: {
-    paddingVertical: 10,
-    paddingRight: 20,
-    alignSelf: 'flex-start',
-    marginBottom: 4,
-  },
-  backButton: {
-    fontSize: 18,
-    color: '#4fb3ff',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
   },
   form: {
     padding: 20,

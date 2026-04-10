@@ -79,12 +79,6 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButtonContainer}>
-          <Text style={styles.backButton}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Settings</Text>
-      </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Default Currency</Text>
@@ -170,26 +164,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1a1a1a',
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-  backButtonContainer: {
-    paddingVertical: 10,
-    paddingRight: 20,
-    alignSelf: 'flex-start',
-    marginBottom: 4,
-  },
-  backButton: {
-    fontSize: 18,
-    color: '#4fb3ff',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
   },
   loadingText: {
     color: '#aaa',
