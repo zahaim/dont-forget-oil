@@ -2,23 +2,9 @@ import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView } from 
 import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { useSettingsStore } from '@/store/settingsStore';
+import { CURRENCIES } from '@/constants/currencies';
 
 const units = ['km', 'miles'] as const;
-const CURRENCIES = [
-  { code: 'EUR', name: 'Euro', symbol: '€' },
-  { code: 'BGN', name: 'Bulgarian Lev', symbol: 'лв' },
-  { code: 'CZK', name: 'Czech Koruna', symbol: 'Kč' },
-  { code: 'DKK', name: 'Danish Krone', symbol: 'kr' },
-  { code: 'HUF', name: 'Hungarian Forint', symbol: 'Ft' },
-  { code: 'PLN', name: 'Polish Zloty', symbol: 'zł' },
-  { code: 'RON', name: 'Romanian Leu', symbol: 'lei' },
-  { code: 'SEK', name: 'Swedish Krona', symbol: 'kr' },
-  { code: 'GBP', name: 'British Pound', symbol: '£' },
-  { code: 'CHF', name: 'Swiss Franc', symbol: 'CHF' },
-  { code: 'USD', name: 'US Dollar', symbol: '$' },
-  { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$' },
-  { code: 'NOK', name: 'Norwegian Krone', symbol: 'kr' },
-];
 
 export default function SetupScreen() {
   const [carName, setCarName] = useState('');
@@ -48,11 +34,9 @@ export default function SetupScreen() {
     }
 
     try {
-      console.log('Setup starting...');
       await completeSetup(carName.trim(), mileageNum);
       setUnit(selectedUnit);
       setDefaultCurrency(selectedCurrency);
-      console.log('Setup completed, navigating...');
       // Navigate to home instead of back
       router.replace('/(tabs)');
     } catch (err) {

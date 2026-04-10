@@ -3,24 +3,9 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useFuelStore } from '@/store/fuelStore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CURRENCIES } from '@/constants/currencies';
 
 const units = ['km', 'miles'] as const;
-const CURRENCIES = [
-  { code: 'EUR', name: 'Euro', symbol: '€' },
-  { code: 'BGN', name: 'Bulgarian Lev', symbol: 'лв' },
-  { code: 'CZK', name: 'Czech Koruna', symbol: 'Kč' },
-  { code: 'DKK', name: 'Danish Krone', symbol: 'kr' },
-  { code: 'HUF', name: 'Hungarian Forint', symbol: 'Ft' },
-  { code: 'PLN', name: 'Polish Zloty', symbol: 'zł' },
-  { code: 'RON', name: 'Romanian Leu', symbol: 'lei' },
-  { code: 'SEK', name: 'Swedish Krona', symbol: 'kr' },
-  { code: 'GBP', name: 'British Pound', symbol: '£' },
-  { code: 'CHF', name: 'Swiss Franc', symbol: 'CHF' },
-  { code: 'USD', name: 'US Dollar', symbol: '$' },
-  { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$' },
-  { code: 'NOK', name: 'Norwegian Krone', symbol: 'kr' },
-];
 
 export default function SettingsScreen() {
   const unit = useSettingsStore((state) => state.unit);
@@ -37,36 +22,45 @@ export default function SettingsScreen() {
   }, []);
 
   const handleNewCar = async () => {
-    const confirmed = confirm('This will clear all fuel entries and reset your car settings. Continue?');
-    if (!confirmed) return;
+    Alert.alert(
+      'Get a New Car?',
+      'This will clear all fuel entries and reset your car setup. This cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          onPress: () => {},
+          style: 'cancel'
+        },
+        {
+          text: 'Continue',
+          onPress: async () => {
+            try {
+              // Clear localStorage for web
+              if (typeof localStorage !== 'undefined') {
+                localStorage.clear();
+              }
 
-    try {
-      console.log('Starting new car reset...');
-      // Clear localStorage for web
-      if (typeof localStorage !== 'undefined') {
-        localStorage.clear();
-        console.log('Cleared all localStorage');
-      }
+              await clearAll();
+              await resetSetup();
 
-      console.log('Calling clearAll...');
-      await clearAll();
-      console.log('Calling resetSetup...');
-      await resetSetup();
+              // Wait a bit for storage to sync
+              await new Promise(resolve => setTimeout(resolve, 200));
 
-      // Wait a bit for storage to sync
-      await new Promise(resolve => setTimeout(resolve, 200));
-      console.log('Reset complete');
-
-      // Reload to ensure setup screen appears
-      if (typeof window !== 'undefined') {
-        window.location.href = '/setup';
-      } else {
-        router.replace('/setup');
-      }
-    } catch (error) {
-      console.error('New car error:', error);
-      alert('Failed to reset for new car');
-    }
+              router.replace('/setup');
+            } catch (error) {
+              const errorMsg = error instanceof Error ? error.message : 'An unknown error occurred';
+              console.error('New car error:', error);
+              Alert.alert(
+                'Reset Failed',
+                `Could not reset your car setup: ${errorMsg}\n\nTry again or contact support.`,
+                [{ text: 'OK' }]
+              );
+            }
+          },
+          style: 'destructive'
+        },
+      ]
+    );
   };
 
   if (!isLoaded) {

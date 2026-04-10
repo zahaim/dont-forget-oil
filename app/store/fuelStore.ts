@@ -67,19 +67,15 @@ export const useFuelStore = create<FuelStore>((set, get) => ({
 
   clearAll: async () => {
     try {
-      console.log('Starting clearAll...');
       await AsyncStorage.removeItem(STORAGE_KEY);
-      console.log('AsyncStorage item removed');
 
       // Also clear localStorage directly (for web)
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem(STORAGE_KEY);
         localStorage.removeItem('@react-native-async-storage/async-storage:' + STORAGE_KEY);
-        console.log('localStorage cleared');
       }
 
       set({ entries: [] });
-      console.log('Store cleared');
     } catch (error) {
       console.error('Failed to clear all entries:', error);
       throw error;
@@ -135,14 +131,13 @@ export const useFuelStore = create<FuelStore>((set, get) => ({
         },
       ];
 
-      const entriesWithIds = sampleData.map((entry) => ({
+      const entriesWithIds = sampleData.map((entry, index) => ({
         ...entry,
-        id: Date.now().toString() + Math.random(),
+        id: `${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
       }));
 
       set({ entries: entriesWithIds });
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(entriesWithIds));
-      console.log('Sample data added successfully');
     } catch (error) {
       console.error('Failed to add sample data:', error);
     }

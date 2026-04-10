@@ -14,6 +14,7 @@ interface SettingsStore {
   setDefaultCurrency: (currency: string) => Promise<void>;
   completeSetup: (carName: string, initialMileage: number) => Promise<void>;
   loadSettings: () => Promise<void>;
+  resetSetup: () => Promise<void>;
 }
 
 const SETTINGS_KEY = 'app_settings';
@@ -105,9 +106,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         initialMileage,
         isSetupComplete: true,
       });
-      console.log('Saving setup to AsyncStorage:', updated);
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
-      console.log('Setup saved successfully');
     } catch (error) {
       console.error('Failed to save setup:', error);
       throw error;
@@ -129,9 +128,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         initialMileage: 0,
         isSetupComplete: false,
       });
-      console.log('Resetting setup to AsyncStorage:', updated);
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
-      console.log('Setup reset successfully');
     } catch (error) {
       console.error('Failed to reset setup:', error);
       throw error;

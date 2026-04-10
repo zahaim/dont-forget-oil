@@ -6,6 +6,14 @@ import { useFuelStore } from '@/store/fuelStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useCallback } from 'react';
 
+interface Stats {
+  fuelConsumed: string;
+  distanceTraveled: string;
+  fuelPer100km: string;
+  costPerLiter: string | number;
+  currencySymbol: string;
+}
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const entries = useFuelStore((state) => state.entries);
@@ -16,10 +24,18 @@ export default function HomeScreen() {
   const isSetupComplete = useSettingsStore((state) => state.isSetupComplete);
   const carName = useSettingsStore((state) => state.carName);
   const initialMileage = useSettingsStore((state) => state.initialMileage);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [setupLoaded, setSetupLoaded] = useState(false);
 
   const getUnitLabel = () => unit === 'km' ? 'km' : 'mi';
+
+  const parseDate = (dateStr: string): Date => {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) {
+      return new Date(0);
+    }
+    return date;
+  };
 
   const CURRENCY_SYMBOLS: Record<string, string> = {
     EUR: '€',
@@ -46,7 +62,7 @@ export default function HomeScreen() {
 
     // Sort entries by date descending
     const sorted = [...entries].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      (a, b) => parseDate(b.date).getTime() - parseDate(a.date).getTime()
     );
 
     const lastEntry = sorted[0];
@@ -73,7 +89,7 @@ export default function HomeScreen() {
     // Filter for last 30 days
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const last30Days = entries.filter((entry) => new Date(entry.date) >= thirtyDaysAgo);
+    const last30Days = entries.filter((entry) => parseDate(entry.date) >= thirtyDaysAgo);
 
     if (last30Days.length === 0) {
       return null;
@@ -90,7 +106,7 @@ export default function HomeScreen() {
 
     // Average fuel efficiency
     const avgFuelPer100km =
-      totalDistance > 0 ? ((totalFuelPurchased / totalDistance) * 100).toFixed(2) : 0;
+      totalDistance > 0 ? ((totalFuelPurchased / totalDistance) * 100).toFixed(2) : "0.00";
 
     // Find currency with most spending
     const currencySpending: Record<string, { cost: number; fuel: number }> = {};
@@ -124,17 +140,12 @@ export default function HomeScreen() {
     const loadAndCalculate = async () => {
       try {
         await Promise.all([loadEntries(), loadSettings()]);
-        // Give store time to update
-        setTimeout(() => {
-          const state = useSettingsStore.getState();
-          console.log('Setup complete?', state.isSetupComplete, 'Car:', state.carName);
-          if (!state.isSetupComplete) {
-            console.log('Redirecting to setup...');
-            router.push('/setup');
-          } else {
-            setSetupLoaded(true);
-          }
-        }, 100);
+        const state = useSettingsStore.getState();
+        if (!state.isSetupComplete) {
+          router.replace('/setup');
+        } else {
+          setSetupLoaded(true);
+        }
       } catch (err) {
         console.error('Load error:', err);
         setSetupLoaded(true);
@@ -211,21 +222,24 @@ export default function HomeScreen() {
             )}
           </View>
 
-          {getLastEntryStats() && (
-            <View style={styles.lastEntryBox}>
-              <Text style={styles.lastEntryLabel}>Last time:</Text>
-              <View style={styles.lastEntryContent}>
-                <View style={styles.lastEntryStat}>
-                  <Text style={styles.lastEntryValue}>{getLastEntryStats()!.efficiency}</Text>
-                  <Text style={styles.lastEntryStatLabel}>Efficiency (l/100{getUnitLabel()})</Text>
-                </View>
-                <View style={styles.lastEntryStat}>
-                  <Text style={styles.lastEntryValue}>{getLastEntryStats()!.costPerLiter}</Text>
-                  <Text style={styles.lastEntryStatLabel}>Cost per liter ({getCurrencySymbol(getLastEntryStats()!.currency)})</Text>
+          {(() => {
+            const lastStats = getLastEntryStats();
+            return lastStats && (
+              <View style={styles.lastEntryBox}>
+                <Text style={styles.lastEntryLabel}>Last time:</Text>
+                <View style={styles.lastEntryContent}>
+                  <View style={styles.lastEntryStat}>
+                    <Text style={styles.lastEntryValue}>{lastStats.efficiency}</Text>
+                    <Text style={styles.lastEntryStatLabel}>Efficiency (l/100{getUnitLabel()})</Text>
+                  </View>
+                  <View style={styles.lastEntryStat}>
+                    <Text style={styles.lastEntryValue}>{lastStats.costPerLiter}</Text>
+                    <Text style={styles.lastEntryStatLabel}>Cost per liter ({getCurrencySymbol(lastStats.currency)})</Text>
+                  </View>
                 </View>
               </View>
-            </View>
-          )}
+            );
+          })()}
         </>
       )}
 
