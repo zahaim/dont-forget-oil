@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Modal, FlatList } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Modal, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { useFuelStore } from '@/store/fuelStore';
@@ -35,6 +35,7 @@ export default function LogFuelScreen() {
   const unit = useSettingsStore((state) => state.unit);
   const defaultCurrency = useSettingsStore((state) => state.defaultCurrency);
   const loadSettings = useSettingsStore((state) => state.loadSettings);
+  const setDefaultCurrency = useSettingsStore((state) => state.setDefaultCurrency);
   const [selectedCurrency, setSelectedCurrency] = useState('EUR');
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -140,13 +141,17 @@ export default function LogFuelScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backButton}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Log Fuel</Text>
-      </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButtonContainer}>
+            <Text style={styles.backButton}>← Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>Log Fuel</Text>
+        </View>
 
       <View style={styles.form}>
         <View style={styles.field}>
@@ -232,7 +237,6 @@ export default function LogFuelScreen() {
                   style={styles.currencyOption}
                   onPress={() => {
                     setSelectedCurrency(item.code);
-                    setShowCurrencyPicker(false);
                   }}
                 >
                   <View>
@@ -243,10 +247,20 @@ export default function LogFuelScreen() {
                 </TouchableOpacity>
               )}
             />
+            <TouchableOpacity
+              style={styles.makeDefaultButton}
+              onPress={() => {
+                setDefaultCurrency(selectedCurrency);
+                setShowCurrencyPicker(false);
+              }}
+            >
+              <Text style={styles.makeDefaultText}>✓ Set as default currency</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -265,10 +279,15 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 10,
   },
+  backButtonContainer: {
+    paddingVertical: 10,
+    paddingRight: 20,
+    alignSelf: 'flex-start',
+    marginBottom: 4,
+  },
   backButton: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#4fb3ff',
-    marginBottom: 10,
   },
   title: {
     fontSize: 24,
@@ -404,5 +423,19 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#4fb3ff',
+  },
+  makeDefaultButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginHorizontal: 20,
+    marginVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  makeDefaultText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

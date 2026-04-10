@@ -3,11 +3,32 @@ import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { useSettingsStore } from '@/store/settingsStore';
 
+const units = ['km', 'miles'] as const;
+const CURRENCIES = [
+  { code: 'EUR', name: 'Euro', symbol: '€' },
+  { code: 'BGN', name: 'Bulgarian Lev', symbol: 'лв' },
+  { code: 'CZK', name: 'Czech Koruna', symbol: 'Kč' },
+  { code: 'DKK', name: 'Danish Krone', symbol: 'kr' },
+  { code: 'HUF', name: 'Hungarian Forint', symbol: 'Ft' },
+  { code: 'PLN', name: 'Polish Zloty', symbol: 'zł' },
+  { code: 'RON', name: 'Romanian Leu', symbol: 'lei' },
+  { code: 'SEK', name: 'Swedish Krona', symbol: 'kr' },
+  { code: 'GBP', name: 'British Pound', symbol: '£' },
+  { code: 'CHF', name: 'Swiss Franc', symbol: 'CHF' },
+  { code: 'USD', name: 'US Dollar', symbol: '$' },
+  { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$' },
+  { code: 'NOK', name: 'Norwegian Krone', symbol: 'kr' },
+];
+
 export default function SetupScreen() {
   const [carName, setCarName] = useState('');
   const [initialMileage, setInitialMileage] = useState('');
   const [error, setError] = useState('');
+  const [selectedUnit, setSelectedUnit] = useState<'km' | 'miles'>('km');
+  const [selectedCurrency, setSelectedCurrency] = useState('EUR');
   const completeSetup = useSettingsStore((state) => state.completeSetup);
+  const setUnit = useSettingsStore((state) => state.setUnit);
+  const setDefaultCurrency = useSettingsStore((state) => state.setDefaultCurrency);
 
   const handleComplete = async () => {
     if (!carName.trim()) {
@@ -29,6 +50,8 @@ export default function SetupScreen() {
     try {
       console.log('Setup starting...');
       await completeSetup(carName.trim(), mileageNum);
+      setUnit(selectedUnit);
+      setDefaultCurrency(selectedCurrency);
       console.log('Setup completed, navigating...');
       // Navigate to home instead of back
       router.replace('/(tabs)');
@@ -57,7 +80,7 @@ export default function SetupScreen() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Initial Mileage (km)</Text>
+            <Text style={styles.label}>Initial Mileage</Text>
             <TextInput
               style={styles.input}
               placeholder="e.g. 150000"
@@ -66,6 +89,56 @@ export default function SetupScreen() {
               keyboardType="decimal-pad"
             />
             <Text style={styles.hint}>The odometer reading right now</Text>
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Distance Unit</Text>
+            <View style={styles.optionsContainer}>
+              {units.map((u) => (
+                <TouchableOpacity
+                  key={u}
+                  style={[
+                    styles.option,
+                    selectedUnit === u && styles.optionSelected,
+                  ]}
+                  onPress={() => setSelectedUnit(u)}
+                >
+                  <Text
+                    style={[
+                      styles.optionText,
+                      selectedUnit === u && styles.optionTextSelected,
+                    ]}
+                  >
+                    {u === 'km' ? 'Kilometers' : 'Miles'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Default Currency</Text>
+            <View style={styles.optionsContainer}>
+              {CURRENCIES.map((curr) => (
+                <TouchableOpacity
+                  key={curr.code}
+                  style={[
+                    styles.option,
+                    selectedCurrency === curr.code && styles.optionSelected,
+                  ]}
+                  onPress={() => setSelectedCurrency(curr.code)}
+                >
+                  <Text
+                    style={[
+                      styles.optionText,
+                      selectedCurrency === curr.code && styles.optionTextSelected,
+                    ]}
+                  >
+                    {curr.code} {curr.symbol}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -152,5 +225,28 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: 20,
+  },
+  optionsContainer: {
+    gap: 10,
+  },
+  option: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 2,
+    borderColor: '#2a2a2a',
+  },
+  optionSelected: {
+    borderColor: '#007AFF',
+    backgroundColor: '#1a3a4a',
+  },
+  optionText: {
+    fontSize: 16,
+    color: '#aaa',
+  },
+  optionTextSelected: {
+    color: '#4fb3ff',
+    fontWeight: '600',
   },
 });

@@ -69,50 +69,6 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleResetData = () => {
-    Alert.alert(
-      'Reset All Data',
-      'Are you sure you want to delete all fuel entries? This cannot be undone.',
-      [
-        { text: 'Cancel', onPress: () => {} },
-        {
-          text: 'Reset',
-          onPress: async () => {
-            try {
-              // Directly clear ALL localStorage before anything else
-              if (typeof localStorage !== 'undefined') {
-                localStorage.clear();
-                console.log('Cleared all localStorage');
-              }
-
-              // Now clear the store
-              useFuelStore.setState({ entries: [] });
-
-              // Wait a bit for localStorage to sync
-              await new Promise(resolve => setTimeout(resolve, 200));
-
-              Alert.alert('Success', 'All data has been cleared', [
-                {
-                  text: 'OK',
-                  onPress: () => {
-                    // Reload after user confirms
-                    if (typeof window !== 'undefined') {
-                      window.location.href = '/';
-                    }
-                  }
-                }
-              ]);
-            } catch (error) {
-              console.error('Reset error:', error);
-              Alert.alert('Error', 'Failed to clear data');
-            }
-          },
-          style: 'destructive',
-        },
-      ]
-    );
-  };
-
   if (!isLoaded) {
     return (
       <View style={styles.container}>
@@ -124,7 +80,7 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButtonContainer}>
           <Text style={styles.backButton}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Settings</Text>
@@ -205,15 +161,6 @@ export default function SettingsScreen() {
         <Text style={styles.warningText}>
           This will clear all entries and reset your car setup
         </Text>
-        <TouchableOpacity
-          style={styles.dangerButton}
-          onPress={handleResetData}
-        >
-          <Text style={styles.dangerButtonText}>🗑️ Clear All Data</Text>
-        </TouchableOpacity>
-        <Text style={styles.warningText}>
-          This will permanently delete all fuel entries
-        </Text>
       </View>
     </ScrollView>
   );
@@ -229,10 +176,15 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 10,
   },
+  backButtonContainer: {
+    paddingVertical: 10,
+    paddingRight: 20,
+    alignSelf: 'flex-start',
+    marginBottom: 4,
+  },
   backButton: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#4fb3ff',
-    marginBottom: 10,
   },
   title: {
     fontSize: 24,

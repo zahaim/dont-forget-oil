@@ -166,7 +166,7 @@ export default function HistoryScreen() {
   return (
     <ScrollView style={styles.container} key={refreshKey}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButtonContainer}>
           <Text style={styles.backButton}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Fuel History</Text>
@@ -276,10 +276,15 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 10,
   },
+  backButtonContainer: {
+    paddingVertical: 10,
+    paddingRight: 20,
+    alignSelf: 'flex-start',
+    marginBottom: 4,
+  },
   backButton: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#4fb3ff',
-    marginBottom: 10,
   },
   title: {
     fontSize: 24,

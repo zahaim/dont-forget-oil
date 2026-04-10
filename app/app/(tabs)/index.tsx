@@ -1,4 +1,5 @@
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEffect, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 import { useFuelStore } from '@/store/fuelStore';
@@ -6,6 +7,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useCallback } from 'react';
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const entries = useFuelStore((state) => state.entries);
   const isEntriesLoaded = useFuelStore((state) => state.isLoaded);
   const loadEntries = useFuelStore((state) => state.loadEntries);
@@ -164,7 +166,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { paddingTop: insets.top + 10 }]}>
       <View style={styles.headerRow}>
         <View style={styles.titleColumn}>
           <Text style={styles.title}>don't-forget-oil</Text>
@@ -249,7 +251,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1a1a1a',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   headerRow: {
     flexDirection: 'row',
