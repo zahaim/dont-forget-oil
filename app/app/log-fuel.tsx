@@ -198,11 +198,6 @@ export default function LogFuelScreen() {
           />
         </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-          <Text style={styles.submitButtonText}>Save Fuel Entry</Text>
-        </TouchableOpacity>
       </View>
 
       <Modal
@@ -242,6 +237,13 @@ export default function LogFuelScreen() {
         </View>
       </Modal>
       </ScrollView>
+
+      <View style={styles.footer}>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+          <Text style={styles.submitButtonText}>Save Fuel Entry</Text>
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -300,7 +302,15 @@ const styles = StyleSheet.create({
   error: {
     color: '#FF3B30',
     fontSize: 14,
-    marginTop: -10,
+  },
+  footer: {
+    backgroundColor: '#1a1a1a',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    paddingBottom: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#2a2a2a',
+    gap: 12,
   },
   submitButton: {
     backgroundColor: '#007AFF',
@@ -308,7 +318,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 20,
   },
   submitButtonText: {
     color: 'white',
