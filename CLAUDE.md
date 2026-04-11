@@ -26,11 +26,9 @@ Users take photos of their car odometer and fuel pump meter to automatically log
 
 **Start here when picking up the project**: Read PROJECT_IDEA.md first for context, then REQUIREMENTS.md to understand what needs to be built.
 
-## Development Stack (To Be Determined)
+## Development Stack
 
-See [TECH_STACK.md](TECH_STACK.md) for technical approach recommendations.
-
-**Decision pending**: React Native/Expo vs Flutter as the primary platform.
+**React Native / Expo SDK ~54** with Expo Router v6 (file-based navigation). See [TECH_STACK.md](TECH_STACK.md) for full rationale.
 
 ## Getting Started
 
@@ -100,11 +98,33 @@ npx expo prebuild --platform ios --clean
 npx expo run:ios --device --configuration Release
 ```
 
+**When to run prebuild**: `npx expo prebuild` regenerates the native iOS project from `app.json`. Run it after:
+- Changing `app.json` (bundle ID, plugins, permissions)
+- Adding a package that includes native code (e.g. `expo-image-picker`)
+
 ## Architecture
 
-*(Will be documented as code structure emerges)*
+```
+app/
+  app/                    # Expo Router screens (file-based routing)
+    (tabs)/               # Bottom tab navigator
+      index.tsx           # Home — 30-day stats, last entry, quick actions
+      explore.tsx         # Placeholder (unused)
+    _layout.tsx           # Root Stack navigator
+    log-fuel.tsx          # Log a fuel entry (camera + manual input)
+    history.tsx           # Fuel history with filters and stats
+    settings.tsx          # App settings (currency, unit, reset)
+    setup.tsx             # First-run setup (car name, mileage, unit, currency)
+  store/
+    fuelStore.ts          # Zustand store — fuel entries, persisted via AsyncStorage
+    settingsStore.ts      # Zustand store — user preferences, persisted via AsyncStorage
+  constants/
+    currencies.ts         # Shared CURRENCIES list used across screens
+```
 
-The app will follow clean architecture with feature-based folder structure. See TECH_STACK.md for architectural recommendations.
+**State management**: Zustand with AsyncStorage persistence
+**Navigation**: Expo Router v6 Stack + Tabs
+**Camera**: `expo-image-picker` (system camera, in-memory only — photos never written to disk)
 
 ## Important Notes
 
@@ -125,10 +145,17 @@ The app will follow clean architecture with feature-based folder structure. See 
 - Fallback: Manual data entry if photo extraction fails
 - Avoid cloud-based OCR APIs (privacy violation)
 
+## Current Status
+
+**Working on device (iOS):**
+- Fuel logging with currency selection, mileage, fuel amount, cost
+- Real-time efficiency calculation
+- Fuel history with filters and stats
+- Settings (currency, unit, car reset)
+- Camera capture for odometer and pump meter (photo shown as in-memory thumbnail, never saved to disk)
+
 ## Next Steps
 
-1. **Choose tech stack**: React Native/Expo or Flutter?
-2. **Initialize project**: Create repo structure and basic setup
-3. **Build MVP**: Fuel logging with photo-based data entry
-4. **Add visualization**: Basic reports and trends
-5. **Test thoroughly**: Privacy and data handling verification
+1. **OCR**: Wire up ML Kit to extract numbers from captured photos and pre-fill fields
+2. **Maintenance reminders**: Phase 2 — service intervals and alerts
+3. **Export/Import**: CSV/JSON backup and restore

@@ -1,6 +1,7 @@
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Modal, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Modal, FlatList, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { useFuelStore } from '@/store/fuelStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { CURRENCIES } from '@/constants/currencies';
@@ -11,6 +12,8 @@ export default function LogFuelScreen() {
   const [cost, setCost] = useState('');
   const [error, setError] = useState('');
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+  const [odometerPhoto, setOdometerPhoto] = useState<string | null>(null);
+  const [fuelPhoto, setFuelPhoto] = useState<string | null>(null);
   const [efficiency, setEfficiency] = useState<string | null>(null);
   const [makeDefault, setMakeDefault] = useState(false);
 
@@ -64,6 +67,22 @@ export default function LogFuelScreen() {
     const entries = useFuelStore.getState().entries;
     if (entries.length === 0) return null;
     return Math.max(...entries.map(e => e.mileage));
+  };
+
+  const capturePhoto = async (target: 'odometer' | 'fuel') => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      setError('Camera permission is required to take photos');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: false,
+      quality: 0.7,
+    });
+    if (!result.canceled) {
+      if (target === 'odometer') setOdometerPhoto(result.assets[0].uri);
+      else setFuelPhoto(result.assets[0].uri);
+    }
   };
 
   const handleSubmit = async () => {
@@ -159,7 +178,12 @@ export default function LogFuelScreen() {
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Mileage ({getUnitLabel()})</Text>
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>Mileage ({getUnitLabel()})</Text>
+            <TouchableOpacity style={styles.cameraButton} onPress={() => capturePhoto('odometer')}>
+              <Text style={styles.cameraButtonText}>📷 Odometer</Text>
+            </TouchableOpacity>
+          </View>
           <TextInput
             style={styles.input}
             placeholder={getLastMileage() !== null ? `Last: ${getLastMileage()}` : 'Enter odometer reading'}
@@ -168,10 +192,21 @@ export default function LogFuelScreen() {
             onChangeText={setMileage}
             keyboardType="decimal-pad"
           />
+          {odometerPhoto && (
+            <TouchableOpacity onPress={() => setOdometerPhoto(null)}>
+              <Image source={{ uri: odometerPhoto }} style={styles.photoThumbnail} />
+              <Text style={styles.photoHint}>Tap to remove</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Fuel Amount (liters)</Text>
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>Fuel Amount (liters)</Text>
+            <TouchableOpacity style={styles.cameraButton} onPress={() => capturePhoto('fuel')}>
+              <Text style={styles.cameraButtonText}>📷 Pump</Text>
+            </TouchableOpacity>
+          </View>
           <TextInput
             style={styles.input}
             placeholder="Enter fuel amount"
@@ -179,6 +214,12 @@ export default function LogFuelScreen() {
             onChangeText={setFuelAmount}
             keyboardType="decimal-pad"
           />
+          {fuelPhoto && (
+            <TouchableOpacity onPress={() => setFuelPhoto(null)}>
+              <Image source={{ uri: fuelPhoto }} style={styles.photoThumbnail} />
+              <Text style={styles.photoHint}>Tap to remove</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {efficiency && (
@@ -395,6 +436,36 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#4fb3ff',
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cameraButton: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#444',
+  },
+  cameraButtonText: {
+    color: '#aaa',
+    fontSize: 13,
+  },
+  photoThumbnail: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 8,
+    marginTop: 8,
+    resizeMode: 'contain',
+  },
+  photoHint: {
+    color: '#555',
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 4,
   },
   checkboxContainer: {
     flexDirection: 'row',
