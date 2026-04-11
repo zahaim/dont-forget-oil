@@ -133,6 +133,7 @@ export default function LogFuelScreen() {
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={130}
     >
       <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
 
@@ -252,6 +253,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1a1a1a',
+    paddingTop: 0,
   },
   loadingText: {
     color: '#aaa',
@@ -307,7 +309,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a1a',
     paddingHorizontal: 20,
     paddingVertical: 12,
-    paddingBottom: 20,
     borderTopWidth: 1,
     borderTopColor: '#2a2a2a',
     gap: 12,
