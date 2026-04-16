@@ -10,7 +10,8 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.janekidzie.app"
+      "bundleIdentifier": "com.janekidzie.app",
+      "deploymentTarget": "15.5"
     },
     "android": {
       "adaptiveIcon": {
@@ -27,6 +28,14 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.5"
+          }
+        }
+      ],
       "expo-router",
       [
         "expo-image-picker",

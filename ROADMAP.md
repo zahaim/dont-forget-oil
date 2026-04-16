@@ -19,10 +19,21 @@ Statuses: ✅ Done · 🚧 In Progress · 📋 Planned · 💡 Idea
 - ✅ Real-time fuel efficiency preview while typing
 - ✅ Mileage validation (cannot be lower than last entry)
 - ✅ Camera capture for odometer and pump meter photos (in-memory, never saved to disk)
-- 🚧 OCR: extract mileage from odometer photo (ML Kit, on-device)
-- 🚧 OCR: extract fuel amount and cost from pump meter photo (ML Kit, on-device)
-- 📋 After OCR fill, all fields remain manually editable (always-edit fallback)
+- ✅ OCR: extract mileage from odometer photo (ML Kit, on-device)
+- ✅ OCR: extract fuel amount and cost from pump meter photo (ML Kit, on-device)
+- ✅ Letter-to-digit coercion for seven-segment/LCD displays (O→0, B→8, S→5, etc.)
+- ✅ Confidence filtering — drop low-confidence OCR elements to reduce glare noise
+- ✅ Smart mileage ranking — prefers values just above last reading
+- ✅ Image quality 1.0 — no JPEG compression artifacts
+- ✅ After OCR fill, all fields remain manually editable (always-edit fallback)
+- ✅ Multi-candidate dropdown — when OCR finds multiple numbers, user picks the right one
+- 📋 Replace candidate dropdown with colored value chips — tap to pick, becomes standard form field
+- 📋 OCR: let user pick cost from pump photo (currently only volume is auto-assigned from pump)
+- 📋 Number roller editor — dedicated picker with scrollable digits (like slot machine), movable decimal point, for precise editing of OCR-filled values
 - 📋 Edit existing fuel entries (mileage overlap validation against neighbours)
+- 📋 Delete fuel entries (swipe-to-delete or long-press)
+- 💡 Tesseract with `letsgodigital` training data — fallback if ML Kit stays poor on seven-segment displays
+- 💡 Image preprocessing (resize/contrast) — blocked by expo-image-manipulator incompatibility with SDK 54, revisit on SDK 55
 
 ### History & Stats
 - ✅ Fuel history list with filters
@@ -42,7 +53,9 @@ Statuses: ✅ Done · 🚧 In Progress · 📋 Planned · 💡 Idea
 - 📋 Import from CSV/JSON backup
 
 ### Design & UX
-- 📋 Design overhaul: big photo-capture button as primary CTA, round edges, cohesive color palette, nicer icons
+- 📋 Design overhaul: big photo-capture button as primary CTA, round edges, cohesive color palette
+- 📋 Replace emoji buttons with proper vector icons (Ionicons or Feather from @expo/vector-icons — already installed, browse at icons.expo.fyi)
+- 📋 User-friendly messages: better error text, success toasts, OCR status feedback
 - 📋 App icon and splash screen (AI-generated or open-source artwork)
 - 📋 Simple user-facing how-to doc / onboarding guide
 

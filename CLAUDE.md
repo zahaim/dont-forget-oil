@@ -23,8 +23,16 @@ Users take photos of their car odometer and fuel pump meter to automatically log
 - **[PROJECT_IDEA.md](PROJECT_IDEA.md)** — Vision, motivation, and three-phase scope
 - **[REQUIREMENTS.md](REQUIREMENTS.md)** — MVP features, Phase 2/3 features, and non-functional requirements
 - **[TECH_STACK.md](TECH_STACK.md)** — Technical decisions, platform choice, OCR approach, data storage
+- **[ROADMAP.md](ROADMAP.md)** — Detailed task tracking with statuses (Done/In Progress/Planned/Idea) for all three phases plus distribution and engineering
 
-**Start here when picking up the project**: Read PROJECT_IDEA.md first for context, then REQUIREMENTS.md to understand what needs to be built.
+**Start here when picking up the project**: Read ROADMAP.md first to see what's done and what's next, then PROJECT_IDEA.md for context if needed.
+
+## Claude Memory (persists across conversations)
+
+Detailed OCR lessons, dependency gotchas, and UX preferences are stored in Claude's auto-memory system. These are loaded automatically at the start of each conversation. Key memories:
+
+- **OCR lessons** — ML Kit details, `expo-image-manipulator` incompatibility with SDK 54 (tried v13/v14/v55, all fail at pod install), seven-segment display limitations, implemented improvements
+- **UX preferences** — User prefers colored chips over dropdowns, wants number roller editor for digit editing, wants pump OCR values assignable to either volume or cost field
 
 ## Development Stack
 
@@ -111,10 +119,13 @@ app/
       index.tsx           # Home — 30-day stats, last entry, quick actions
       explore.tsx         # Placeholder (unused)
     _layout.tsx           # Root Stack navigator
-    log-fuel.tsx          # Log a fuel entry (camera + manual input)
+    log-fuel.tsx          # Log a fuel entry (camera + OCR + manual input)
     history.tsx           # Fuel history with filters and stats
     settings.tsx          # App settings (currency, unit, reset)
     setup.tsx             # First-run setup (car name, mileage, unit, currency)
+  utils/
+    ocr.ts                # OCR pipeline — ML Kit recognize, letter-to-digit coercion,
+                          #   confidence filtering, extractMileage(), extractPumpReading()
   store/
     fuelStore.ts          # Zustand store — fuel entries, persisted via AsyncStorage
     settingsStore.ts      # Zustand store — user preferences, persisted via AsyncStorage
@@ -125,6 +136,7 @@ app/
 **State management**: Zustand with AsyncStorage persistence
 **Navigation**: Expo Router v6 Stack + Tabs
 **Camera**: `expo-image-picker` (system camera, in-memory only — photos never written to disk)
+**OCR**: `@react-native-ml-kit/text-recognition` v2 (on-device Google ML Kit, Latin script)
 
 ## Important Notes
 
@@ -141,9 +153,15 @@ app/
 - Users should be able to back up a single file to their cloud drive
 
 ### OCR Approach
-- Recommended: Google ML Kit (on-device, offline, privacy-friendly)
-- Fallback: Manual data entry if photo extraction fails
+- **Library**: `@react-native-ml-kit/text-recognition` v2.0.0 (on-device, offline, privacy-friendly)
+- **Pipeline** (`utils/ocr.ts`): recognize → confidence filter → letter-to-digit coerce → regex extract → rank candidates
+- Fallback: Manual data entry if photo extraction fails — all fields always editable
 - Avoid cloud-based OCR APIs (privacy violation)
+- **Known limitation**: ML Kit struggles with seven-segment LCD/LED displays (gaps between segments confuse the model). See Claude memory for full details and fallback options.
+
+### Known Dependency Issues
+- **DO NOT use `expo-image-manipulator`** — incompatible with Expo SDK 54. All versions fail at `pod install` (v13/v14 need missing `EXImageLoader` pod, v55 needs Swift APIs from newer `expo-modules-core`). Revisit when upgrading to SDK 55.
+- To suppress git dirty warnings during prebuild: `EXPO_NO_GIT_STATUS=1 npx expo prebuild ...`
 
 ## Current Status
 
@@ -152,10 +170,9 @@ app/
 - Real-time efficiency calculation
 - Fuel history with filters and stats
 - Settings (currency, unit, car reset)
-- Camera capture for odometer and pump meter (photo shown as in-memory thumbnail, never saved to disk)
+- Camera capture for odometer and pump meter (in-memory only, never saved to disk)
+- OCR: mileage extraction from odometer photos (letter-to-digit coercion, confidence filtering, smart ranking by last mileage)
+- OCR: fuel amount and cost extraction from pump meter photos (volume/currency regex, fallback heuristics)
+- Multi-candidate picker when OCR detects multiple values
 
-## Next Steps
-
-1. **OCR**: Wire up ML Kit to extract numbers from captured photos and pre-fill fields
-2. **Maintenance reminders**: Phase 2 — service intervals and alerts
-3. **Export/Import**: CSV/JSON backup and restore
+**See [ROADMAP.md](ROADMAP.md) for full task tracking and next steps.**

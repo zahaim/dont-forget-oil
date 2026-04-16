@@ -1,10 +1,11 @@
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Modal, FlatList, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Modal, FlatList, KeyboardAvoidingView, Platform, Image, ActivityIndicator } from 'react-native';
 import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useFuelStore } from '@/store/fuelStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { CURRENCIES } from '@/constants/currencies';
+import { extractMileage, extractPumpReading } from '@/utils/ocr';
 
 export default function LogFuelScreen() {
   const [mileage, setMileage] = useState('');
@@ -16,6 +17,13 @@ export default function LogFuelScreen() {
   const [fuelPhoto, setFuelPhoto] = useState<string | null>(null);
   const [efficiency, setEfficiency] = useState<string | null>(null);
   const [makeDefault, setMakeDefault] = useState(false);
+  const [ocrProcessing, setOcrProcessing] = useState(false);
+  const [ocrHint, setOcrHint] = useState<string | null>(null);
+  const [ocrDebug, setOcrDebug] = useState<string[] | null>(null);
+  const [mileageCandidates, setMileageCandidates] = useState<number[]>([]);
+  const [pumpCandidates, setPumpCandidates] = useState<number[]>([]);
+  const [showMileagePicker, setShowMileagePicker] = useState(false);
+  const [showPumpPicker, setShowPumpPicker] = useState<'fuel' | 'cost' | null>(null);
 
   const addFuel = useFuelStore((state) => state.addFuel);
   const unit = useSettingsStore((state) => state.unit);
@@ -69,6 +77,70 @@ export default function LogFuelScreen() {
     return Math.max(...entries.map(e => e.mileage));
   };
 
+  const processPhoto = async (uri: string, target: 'odometer' | 'fuel') => {
+    if (target === 'odometer') {
+      setOdometerPhoto(uri);
+      setOcrProcessing(true);
+      setOcrHint(null);
+      setOcrDebug(null);
+      setMileageCandidates([]);
+      try {
+        const lastMil = getLastMileage();
+        const res = await extractMileage(uri, lastMil);
+        setOcrDebug(res.rawText);
+        if (res.value !== null) {
+          setMileage(String(res.value));
+          const extra = res.candidates.length > 1 ? ` (${res.candidates.length} candidates)` : '';
+          setOcrHint(`Detected mileage: ${res.value}${extra}`);
+          if (res.candidates.length > 1) {
+            setMileageCandidates(res.candidates);
+          }
+        } else {
+          setOcrHint('Could not read mileage — enter manually');
+        }
+      } catch {
+        setOcrHint('OCR failed — enter manually');
+      } finally {
+        setOcrProcessing(false);
+      }
+    } else {
+      setFuelPhoto(uri);
+      setOcrProcessing(true);
+      setOcrHint(null);
+      setOcrDebug(null);
+      setPumpCandidates([]);
+      try {
+        const pump = await extractPumpReading(uri);
+        setOcrDebug(pump.rawText);
+        const parts: string[] = [];
+        if (pump.fuelAmount !== null) {
+          setFuelAmount(String(pump.fuelAmount));
+          parts.push(`volume: ${pump.fuelAmount}`);
+        }
+        if (pump.cost !== null) {
+          setCost(String(pump.cost));
+          parts.push(`cost: ${pump.cost}`);
+        }
+        if (pump.pricePerUnit !== null) {
+          parts.push(`price/l: ${pump.pricePerUnit}`);
+        }
+        if (parts.length > 0) {
+          const extra = pump.allCandidates.length > 1 ? ` (${pump.allCandidates.length} values found)` : '';
+          setOcrHint(`Detected ${parts.join(', ')}${extra}`);
+        } else {
+          setOcrHint('Could not read pump display — enter manually');
+        }
+        if (pump.allCandidates.length > 1) {
+          setPumpCandidates(pump.allCandidates);
+        }
+      } catch {
+        setOcrHint('OCR failed — enter manually');
+      } finally {
+        setOcrProcessing(false);
+      }
+    }
+  };
+
   const capturePhoto = async (target: 'odometer' | 'fuel') => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
@@ -76,12 +148,27 @@ export default function LogFuelScreen() {
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: false,
-      quality: 0.7,
+      allowsEditing: true,
+      quality: 1.0,
     });
     if (!result.canceled) {
-      if (target === 'odometer') setOdometerPhoto(result.assets[0].uri);
-      else setFuelPhoto(result.assets[0].uri);
+      await processPhoto(result.assets[0].uri, target);
+    }
+  };
+
+  const pickPhoto = async (target: 'odometer' | 'fuel') => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      setError('Photo library permission is required');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 1.0,
+    });
+    if (!result.canceled) {
+      await processPhoto(result.assets[0].uri, target);
     }
   };
 
@@ -180,10 +267,16 @@ export default function LogFuelScreen() {
         <View style={styles.field}>
           <View style={styles.labelRow}>
             <Text style={styles.label}>Mileage ({getUnitLabel()})</Text>
-            <TouchableOpacity style={styles.cameraButton} onPress={() => capturePhoto('odometer')}>
-              <Text style={styles.cameraButtonText}>📷 Odometer</Text>
-            </TouchableOpacity>
+            <View style={styles.photoButtons}>
+              <TouchableOpacity style={styles.cameraButton} onPress={() => capturePhoto('odometer')}>
+                <Text style={styles.cameraButtonText}>📷 Camera</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cameraButton} onPress={() => pickPhoto('odometer')}>
+                <Text style={styles.cameraButtonText}>🖼 Gallery</Text>
+              </TouchableOpacity>
+            </View>
           </View>
+          <Text style={styles.photoTip}>Crop to numbers only, avoid glare</Text>
           <TextInput
             style={styles.input}
             placeholder={getLastMileage() !== null ? `Last: ${getLastMileage()}` : 'Enter odometer reading'}
@@ -192,6 +285,16 @@ export default function LogFuelScreen() {
             onChangeText={setMileage}
             keyboardType="decimal-pad"
           />
+          {mileageCandidates.length > 1 && (
+            <TouchableOpacity
+              style={styles.pickValueButton}
+              onPress={() => setShowMileagePicker(true)}
+            >
+              <Text style={styles.pickValueText}>
+                Choose from {mileageCandidates.length} detected values ▼
+              </Text>
+            </TouchableOpacity>
+          )}
           {odometerPhoto && (
             <TouchableOpacity onPress={() => setOdometerPhoto(null)}>
               <Image source={{ uri: odometerPhoto }} style={styles.photoThumbnail} />
@@ -203,10 +306,16 @@ export default function LogFuelScreen() {
         <View style={styles.field}>
           <View style={styles.labelRow}>
             <Text style={styles.label}>Fuel Amount (liters)</Text>
-            <TouchableOpacity style={styles.cameraButton} onPress={() => capturePhoto('fuel')}>
-              <Text style={styles.cameraButtonText}>📷 Pump</Text>
-            </TouchableOpacity>
+            <View style={styles.photoButtons}>
+              <TouchableOpacity style={styles.cameraButton} onPress={() => capturePhoto('fuel')}>
+                <Text style={styles.cameraButtonText}>📷 Camera</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cameraButton} onPress={() => pickPhoto('fuel')}>
+                <Text style={styles.cameraButtonText}>🖼 Gallery</Text>
+              </TouchableOpacity>
+            </View>
           </View>
+          <Text style={styles.photoTip}>Include L/dm3 and price labels for best results</Text>
           <TextInput
             style={styles.input}
             placeholder="Enter fuel amount"
@@ -214,6 +323,22 @@ export default function LogFuelScreen() {
             onChangeText={setFuelAmount}
             keyboardType="decimal-pad"
           />
+          {pumpCandidates.length > 1 && (
+            <View style={styles.pickValueRow}>
+              <TouchableOpacity
+                style={styles.pickValueButton}
+                onPress={() => setShowPumpPicker('fuel')}
+              >
+                <Text style={styles.pickValueText}>Pick volume ▼</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.pickValueButton}
+                onPress={() => setShowPumpPicker('cost')}
+              >
+                <Text style={styles.pickValueText}>Pick cost ▼</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           {fuelPhoto && (
             <TouchableOpacity onPress={() => setFuelPhoto(null)}>
               <Image source={{ uri: fuelPhoto }} style={styles.photoThumbnail} />
@@ -227,6 +352,33 @@ export default function LogFuelScreen() {
             <Text style={styles.efficiencyLabel}>Estimated Efficiency</Text>
             <Text style={styles.efficiencyValue}>{efficiency} l/100{getUnitLabel()}</Text>
           </View>
+        )}
+
+        {ocrProcessing && (
+          <View style={styles.ocrStatusBox}>
+            <ActivityIndicator size="small" color="#4fb3ff" />
+            <Text style={styles.ocrStatusText}>Reading photo...</Text>
+          </View>
+        )}
+
+        {!ocrProcessing && ocrHint && (
+          <View style={styles.ocrStatusBox}>
+            <Text style={styles.ocrStatusText}>{ocrHint}</Text>
+          </View>
+        )}
+
+        {!ocrProcessing && ocrDebug && ocrDebug.length > 0 && (
+          <TouchableOpacity
+            style={styles.ocrDebugBox}
+            onPress={() => setOcrDebug(null)}
+          >
+            <Text style={styles.ocrDebugTitle}>OCR raw text (tap to dismiss):</Text>
+            {ocrDebug.map((line, i) => (
+              <Text key={i} style={styles.ocrDebugLine}>
+                {i + 1}: {line}
+              </Text>
+            ))}
+          </TouchableOpacity>
         )}
 
         <View style={styles.field}>
@@ -278,6 +430,89 @@ export default function LogFuelScreen() {
           </View>
         </View>
       </Modal>
+      {/* Mileage candidate picker */}
+      <Modal
+        visible={showMileagePicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMileagePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Mileage</Text>
+              <TouchableOpacity onPress={() => setShowMileagePicker(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={mileageCandidates}
+              keyExtractor={(item) => String(item)}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.candidateOption}
+                  onPress={() => {
+                    setMileage(String(item));
+                    setShowMileagePicker(false);
+                  }}
+                >
+                  <Text style={styles.candidateValue}>{item.toLocaleString()}</Text>
+                  {String(item) === mileage && (
+                    <Text style={styles.candidateSelected}>selected</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Pump candidate picker (fuel or cost) */}
+      <Modal
+        visible={showPumpPicker !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPumpPicker(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Select {showPumpPicker === 'fuel' ? 'Fuel Amount' : 'Cost'}
+              </Text>
+              <TouchableOpacity onPress={() => setShowPumpPicker(null)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={pumpCandidates}
+              keyExtractor={(item) => String(item)}
+              renderItem={({ item }) => {
+                const current = showPumpPicker === 'fuel' ? fuelAmount : cost;
+                return (
+                  <TouchableOpacity
+                    style={styles.candidateOption}
+                    onPress={() => {
+                      if (showPumpPicker === 'fuel') {
+                        setFuelAmount(String(item));
+                      } else {
+                        setCost(String(item));
+                      }
+                      setShowPumpPicker(null);
+                    }}
+                  >
+                    <Text style={styles.candidateValue}>{item}</Text>
+                    {String(item) === current && (
+                      <Text style={styles.candidateSelected}>selected</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
+
       </ScrollView>
 
       <View style={styles.footer}>
@@ -442,6 +677,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  photoButtons: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  photoTip: {
+    color: '#666',
+    fontSize: 11,
+    fontStyle: 'italic',
+  },
   cameraButton: {
     backgroundColor: '#2a2a2a',
     borderRadius: 6,
@@ -481,5 +725,77 @@ const styles = StyleSheet.create({
   checkboxLabel: {
     fontSize: 14,
     color: '#aaa',
+  },
+  ocrStatusBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1e2a1e',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    gap: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4fb3ff',
+  },
+  ocrStatusText: {
+    color: '#ccc',
+    fontSize: 13,
+    flexShrink: 1,
+  },
+  ocrDebugBox: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 8,
+    padding: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ff9500',
+  },
+  ocrDebugTitle: {
+    color: '#ff9500',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  ocrDebugLine: {
+    color: '#999',
+    fontSize: 11,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    lineHeight: 16,
+  },
+  pickValueButton: {
+    backgroundColor: '#1a2a3a',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#4fb3ff',
+  },
+  pickValueText: {
+    color: '#4fb3ff',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  pickValueRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  candidateOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2a2a2a',
+  },
+  candidateValue: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    fontVariant: ['tabular-nums'],
+  },
+  candidateSelected: {
+    fontSize: 12,
+    color: '#4fb3ff',
+    fontStyle: 'italic',
   },
 });
